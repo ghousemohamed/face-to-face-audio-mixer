@@ -79,8 +79,13 @@ export class Selector {
       return this.selectedId;
     }
 
-    if (bestId !== this.selectedId && this.clearlyBetter(bestId, this.selectedId)) {
-      this.selectedId = bestId;
+    if (bestId !== this.selectedId) {
+      const incumbent = metrics.get(this.selectedId);
+      const incumbentSpeaking = incumbent?.isSpeech ?? false;
+
+      if (!incumbentSpeaking || this.clearlyBetter(bestId, this.selectedId)) {
+        this.selectedId = bestId;
+      }
     }
 
     return this.selectedId;

@@ -134,9 +134,14 @@ browser mic ─ 20 ms PCM frames ─→ WebSocket ─→ room's CoreAudioMixer
 Each device gets a Silero voice-activity detector. The mixer scores every microphone on
 speech probability, per-band envelope variance relative to the others, and how recently it
 carried speech. Envelope variance is what separates the person speaking into their own
-phone from the same voice bleeding into the other one across the table. A challenger has
-to win across three smoothed windows before it takes over, which stops a cough or a chair
-scrape from stealing the stream.
+phone from the same voice bleeding into the other one across the table. While someone is
+still speaking, a challenger has to win across three smoothed windows before it takes
+over, which stops a cough or a chair scrape from stealing the stream. Once the current
+speaker stops, that guard lifts, so taking turns does not have to wait it out.
+
+Handover is asymmetric: the incoming microphone opens in about 12 ms while the outgoing
+one decays over 120 ms. The two overlap briefly instead of cutting, so the new speaker's
+first syllable survives and the previous speaker's tail is not clipped.
 
 Set `vad: 'energy'` to skip the neural model, or `mode: 'mix'` to average all inputs
 instead, which is useful as a baseline to compare against.

@@ -1,40 +1,41 @@
-const CROSSFADE_MS = 30;
-const HALF_PI = Math.PI / 2;
+const ATTACK_MS = 12;
+const RELEASE_MS = 120;
+const SILENT_GAIN = 1e-4;
 
 export class Crossfade {
   constructor(sampleRate) {
-    this.crossfadeSamples = Math.max(1, Math.round((sampleRate * CROSSFADE_MS) / 1000));
-    this.playingId = null;
-    this.fadeFromId = null;
-    this.fadePosition = this.crossfadeSamples;
-  }
-
-  get fading() {
-    return this.fadePosition < this.crossfadeSamples;
+    this.attack = rateFor(ATTACK_MS, sampleRate);
+    this.release = rateFor(RELEASE_MS, sampleRate);
+    this.gains = new Map();
   }
 
   render(selectedId, sources, output) {
-    if (this.playingId !== selectedId) {
-      this.fadeFromId = this.playingId;
-      this.playingId = selectedId;
-      this.fadePosition = 0;
+    output.fill(0);
+
+    for (const id of this.gains.keys()) {
+      if (!sources.has(id)) this.gains.delete(id);
     }
 
-    const to = sources.get(this.playingId) ?? null;
-    const from = sources.get(this.fadeFromId) ?? null;
+    for (const [id, source] of sources) {
+      const target = id === selectedId ? 1 : 0;
+      let gain = this.gains.get(id) ?? 0;
 
-    for (let i = 0; i < output.length; i += 1) {
-      if (!this.fading) {
-        output[i] = to ? to[i] : 0;
-        continue;
+      if (gain === 0 && target === 0) continue;
+
+      const rate = target > gain ? this.attack : this.release;
+
+      for (let i = 0; i < output.length; i += 1) {
+        gain += (target - gain) * rate;
+        if (source) output[i] += source[i] * gain;
       }
 
-      const t = this.fadePosition / this.crossfadeSamples;
-      output[i] =
-        (to ? to[i] * Math.sin(t * HALF_PI) : 0) + (from ? from[i] * Math.cos(t * HALF_PI) : 0);
-      this.fadePosition += 1;
+      this.gains.set(id, target === 0 && gain < SILENT_GAIN ? 0 : gain);
     }
 
     return output;
   }
+}
+
+function rateFor(milliseconds, sampleRate) {
+  return 1 - Math.exp(-1 / ((milliseconds / 1000) * sampleRate));
 }
