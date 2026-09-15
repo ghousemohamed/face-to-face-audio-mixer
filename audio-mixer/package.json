@@ -1,0 +1,30 @@
+{
+  "name": "@glot/core-audio-mixer",
+  "version": "0.1.0",
+  "description": "Merge live PCM streams from several co-located devices into one unified conversational stream.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "models",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "audio",
+    "pcm",
+    "mixer",
+    "vad",
+    "real-time",
+    "speech"
+  ],
+  "dependencies": {
+    "onnxruntime-node": "^1.30.0"
+  }
+}

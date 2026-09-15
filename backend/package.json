@@ -1,0 +1,16 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Express and WebSocket host for the core audio mixer, with room lifecycle and WAV recording.",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@glot/core-audio-mixer": "*",
+    "express": "^5.2.1",
+    "express-ws": "^5.0.2"
+  }
+}
