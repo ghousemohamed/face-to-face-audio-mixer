@@ -42,7 +42,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const running = new Map();
 let shuttingDown = false;
 
-function start(name, command, args, { onLine, env, ...options } = {}) {
+function start(name, command, args, { onLine, env, optional = false, ...options } = {}) {
   const child = spawn(command, args, {
     cwd: ROOT,
     detached: true,
@@ -64,7 +64,7 @@ function start(name, command, args, { onLine, env, ...options } = {}) {
     running.delete(name);
     if (shuttingDown) return;
     write(name, dim(`exited (${signal ?? `code ${code}`})`));
-    shutdown(code ?? 1);
+    if (!optional) shutdown(code ?? 1);
   });
 
   child.on('error', (error) => {
@@ -143,20 +143,31 @@ async function openTunnel() {
 
   const url = await new Promise((resolve) => {
     const timer = setTimeout(() => resolve(null), 30_000);
-    start('tunnel', 'cloudflared', ['tunnel', '--url', `http://localhost:${FRONTEND_PORT}`], {
-      onLine: (line) => {
-        const match = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(line);
-        if (match) {
-          clearTimeout(timer);
-          resolve(match[0]);
-        }
+    const done = (value) => {
+      clearTimeout(timer);
+      resolve(value);
+    };
+
+    const child = start(
+      'tunnel',
+      'cloudflared',
+      ['tunnel', '--url', `http://localhost:${FRONTEND_PORT}`],
+      {
+        optional: true,
+        onLine: (line) => {
+          const match = /https:\/\/(?!api\.)[a-z0-9-]+\.trycloudflare\.com/.exec(line);
+          if (match) done(match[0]);
+        },
       },
-    });
+    );
+
+    child.once('exit', () => done(null));
   });
 
   if (!url) {
-    log('tunnel did not report a URL in time');
-    return shutdown(1);
+    log(bold('the tunnel did not come up; continuing on localhost only'));
+    log(dim('two tabs on this machine will work, phones will not'));
+    return null;
   }
 
   const host = new URL(url).host;
@@ -185,7 +196,7 @@ async function main() {
     cwd: join(ROOT, 'frontend'),
     env: {
       BACKEND_ORIGIN: `http://localhost:${BACKEND_PORT}`,
-      VITE_HMR_HOST: tunnelHost,
+      ...(tunnelHost ? { VITE_HMR_HOST: tunnelHost } : {}),
     },
   });
 
@@ -193,11 +204,16 @@ async function main() {
     return shutdown(1);
   }
 
-  const joinUrl = `https://${tunnelHost}/?room=${encodeURIComponent(ROOM)}`;
+  const query = `?room=${encodeURIComponent(ROOM)}`;
+  const joinUrl = tunnelHost
+    ? `https://${tunnelHost}/${query}`
+    : `http://localhost:${FRONTEND_PORT}/${query}`;
   const rule = dim('-'.repeat(Math.max(joinUrl.length + 4, 52)));
 
   process.stdout.write(`\n${rule}\n`);
-  process.stdout.write(`  ${bold('Join from both devices:')}\n\n`);
+  process.stdout.write(
+    `  ${bold(tunnelHost ? 'Join from both devices:' : 'Open on this machine:')}\n\n`,
+  );
   process.stdout.write(`  ${bold(paint('32', joinUrl))}\n\n`);
   process.stdout.write(`  ${dim(`room "${ROOM}" is prefilled`)}\n`);
   process.stdout.write(`  ${dim('use headphones if you open the monitor panel')}\n`);

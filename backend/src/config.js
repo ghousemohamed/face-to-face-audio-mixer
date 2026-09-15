@@ -2,7 +2,8 @@ import { fileURLToPath } from 'node:url';
 
 export const PORT = Number(process.env.PORT ?? 8080);
 
-export const RECORDINGS_DIR = fileURLToPath(new URL('../recordings/', import.meta.url));
+export const RECORDINGS_DIR = process.env.RECORDINGS_DIR
+  ?? fileURLToPath(new URL('../recordings/', import.meta.url));
 
 export const MIXER_OPTIONS = {
   sampleRate: 48_000,
